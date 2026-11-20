@@ -1,0 +1,8 @@
+started_at=2026-10-09T15:55:40-04:00 host=tai mode=train algorithm=grpo gpus=0,1
+batch=9 rollout_n=8 steps=100 context=32768 max_episodes=72 max_num_seqs=72 gpu_mem_util=0.45 lr=1e-5 save_freq=5
+model=/works/yanan/models/qwen35-4b-851bf6e8-eosfix appworld_root=/home/yanan/appworld-root ckpt=/works/yanan/rllm-appworld-checkpoints/appworld-grpo-qwen35-4b-b9n8-c32768-lr1e-5-2gpu-dot16
+e73df8cb78ea24d7d0dde8e39774cb065dc01dc0fc5145880087a21cc5c5d58e  appworld_flow.py
+00e0d99c1ef1750c75fb66773c7e441f1b815ca4b3f1269f29076716531f82bb  train_appworld.py
+d212c41137ca40f90782a2976478fee7da04a0487bcfc9dc16c632eedc6a4679  train_appworld.sh
+99f5c9a2ae981b41c952d37217ea839886d40973cd51ee390564f2c5e32c04eb  register_appworld.py
+appworld_react=SHA256SUMS ok

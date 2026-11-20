@@ -26,7 +26,7 @@ CPU/import checks pass, including `vllm._C` and `flash_attn`, but dependency dec
 | Installed ml-dtypes 0.6.0 | NumPy >=2 |
 | mistral-common 1.11.7 | NumPy <2.4 on Python 3.11; installed NumPy is 2.4.6 |
 
-An isolated NumPy-1.26/OpenCV-4.11/ml-dtypes-0.5 probe passed CPU imports but violated vLLM's OpenCV requirement. It was rejected, not promoted. Its package snapshot is `environment/requirements-rejected-numpy1-probe.txt`; do not use it as a recommended environment. Fixing the whole constraint set requires choosing different framework versions, not merely changing NumPy. That change needs a separately validated protocol and is not part of the path repair. Existing successful execution is not evidence that package declarations are consistent.
+An isolated NumPy-1.26/OpenCV-4.11/ml-dtypes-0.5 probe passed CPU imports but violated vLLM's OpenCV requirement. It was rejected, not promoted. Fixing the whole constraint set requires choosing different framework versions, not merely changing NumPy. That change needs a separately validated protocol and is not part of the path repair. Existing successful execution is not evidence that package declarations are consistent.
 
 ## Preflight
 

@@ -28,6 +28,15 @@ RUNTIME_TAG="${FINQA_MULTITABLE_RUNTIME_TAG:-local}"
 RUNTIME_ROOT="$PROTOCOL_DIR/runtime/${RUNTIME_TAG}/lane${GPU}"
 MERGED_CACHE="${FINQA_MULTITABLE_MERGED_CACHE:-/mnt/disk1t/finqa-multitable-v2-merged-cache}"
 DATA_SOURCE="$GRPO_DIR/.rllm_multilane0_multi_val/datasets"
+# Optional FINQA_MULTITABLE_SPLITS (e.g. "multi_val" on one GPU and "multi_test" on another for the same item):
+# evaluate only those splits. Unset = both splits, and every file name below is unchanged. With a subset, the
+# per-server files carry a split suffix, the lane marks COMPLETE.<split>, and COMPLETE once both splits have one.
+SPLITS="${FINQA_MULTITABLE_SPLITS:-multi_val multi_test}"
+SFX=""
+if [[ "$SPLITS" != "multi_val multi_test" ]]; then
+    for s in $SPLITS; do [[ "$s" == multi_val || "$s" == multi_test ]] || { echo "invalid split in FINQA_MULTITABLE_SPLITS: $s" >&2; exit 2; }; done
+    SFX=".${SPLITS// /_}"
+fi
 mkdir -p "$OUTPUT_ROOT" "$RUNTIME_ROOT" "$MERGED_CACHE"
 
 prepare_home() {
@@ -101,7 +110,7 @@ resolve_model() {
 
 write_manifest() {
     local out="$1" item="$2"
-    python - "$out/protocol_manifest.json" "$ARM" "$item" "$MODEL" "$GPU" "$PORT" <<'PY'
+    python - "$out/protocol_manifest$SFX.json" "$ARM" "$item" "$MODEL" "$GPU" "$PORT" <<'PY'
 import hashlib, json, pathlib, sys
 out, arm, item, model, gpu, port = sys.argv[1:]
 root = pathlib.Path("/home/yanan/agents/rllm/exp_scripts/finqa-multitable-v2")
@@ -143,7 +152,7 @@ for ITEM in "$@"; do
     resolve_model "$ITEM"
     OUT="$OUTPUT_ROOT/$TAG"
     mkdir -p "$OUT"
-    [[ ! -e "$OUT/COMPLETE" ]] || { echo "[$ARM/$TAG] already complete"; continue; }
+    [[ ! -e "$OUT/COMPLETE" && ! -e "$OUT/COMPLETE$SFX" ]] || { echo "[$ARM/$TAG] already complete"; continue; }
     write_manifest "$OUT" "$ITEM"
 
     echo "[$ARM/$TAG] serving $MODEL on gpu=$GPU port=$PORT"
@@ -153,18 +162,18 @@ for ITEM in "$@"; do
         --generation-config vllm \
         --enable-auto-tool-choice --tool-call-parser hermes \
         "${LORA_ARGS[@]}" \
-        >"$OUT/vllm_serve.log" 2>&1 &
+        >"$OUT/vllm_serve$SFX.log" 2>&1 &
     SERVER_PID=$!
     ready=0
     for _ in $(seq 1 180); do
         if curl -sf "http://localhost:$PORT/v1/models" >/dev/null 2>&1; then ready=1; break; fi
-        kill -0 "$SERVER_PID" 2>/dev/null || { echo "vLLM died: $OUT/vllm_serve.log" >&2; exit 1; }
+        kill -0 "$SERVER_PID" 2>/dev/null || { echo "vLLM died: $OUT/vllm_serve$SFX.log" >&2; exit 1; }
         sleep 5
     done
     [[ "$ready" -eq 1 ]] || { echo "vLLM readiness timeout" >&2; exit 1; }
     if [[ -n "$SERVED_NAME" ]]; then
         # The adapter must change the policy: its prompt log-probs have to differ from the base's.
-        python - "$PORT" "$MODEL" "$SERVED_NAME" >"$OUT/lora_logprob_check.log" 2>&1 <<'PY' || { echo "[$ARM/$TAG] adapter log-prob check failed: $OUT/lora_logprob_check.log" >&2; exit 1; }
+        python - "$PORT" "$MODEL" "$SERVED_NAME" >"$OUT/lora_logprob_check$SFX.log" 2>&1 <<'PY' || { echo "[$ARM/$TAG] adapter log-prob check failed: $OUT/lora_logprob_check$SFX.log" >&2; exit 1; }
 import json, sys, urllib.request
 port, base, lora = sys.argv[1:]
 prompt = "Total revenue in 2019 was $4,210 million and in 2018 was $3,870 million, so the growth rate was"
@@ -177,10 +186,10 @@ diff = max(abs(x - y) for x, y in zip(a, b))
 print(f"tokens={len(a)} max_abs_logprob_diff={diff:.6f} (expected > 1e-3: adapter {lora} vs base {base})")
 sys.exit(0 if len(a) == len(b) and diff > 1e-3 else 1)
 PY
-        cat "$OUT/lora_logprob_check.log"
+        cat "$OUT/lora_logprob_check$SFX.log"
     fi
 
-    for SPLIT in multi_val multi_test; do
+    for SPLIT in $SPLITS; do
         [[ "$SPLIT" == multi_val ]] && EXPECTED=126 || EXPECTED=131
         RESULT="$OUT/$SPLIT.json"
         EPISODES="$OUT/episodes_$SPLIT"
@@ -203,7 +212,12 @@ PY
             >"$OUT/audit_$SPLIT.log" 2>&1
     done
     stop_server
-    touch "$OUT/COMPLETE"
+    if [[ -z "$SFX" ]]; then
+        touch "$OUT/COMPLETE"
+    else
+        touch "$OUT/COMPLETE$SFX"
+        if [[ -e "$OUT/COMPLETE.multi_val" && -e "$OUT/COMPLETE.multi_test" ]]; then touch "$OUT/COMPLETE"; fi
+    fi
     if [[ ( "$ARM" == prpo || "$ARM" == rpp ) && "$ITEM" != base ]]; then
         python - "$MODEL" <<'PY'
 import shutil, sys

@@ -1,0 +1,4 @@
+Total companies: 207
+Train: 165 companies | 5454 tables | avg 33.05 tables/company
+Val: 20 companies | 706 tables | avg 35.30 tables/company
+Test: 22 companies | 763 tables | avg 34.68 tables/company

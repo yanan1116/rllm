@@ -35,8 +35,8 @@ with open(MULTI_TABLE_CORRECTNESS_PROMPT_PATH, encoding="utf-8") as f:
     MULTI_TABLE_CORRECTNESS_PROMPT = f.read()
 
 OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
-JUDGE_MODEL = os.environ.get("FINQA_JUDGE_MODEL", "gpt-5.4-nano")
-MULTI_TABLE_JUDGE_MODEL = os.environ.get("FINQA_MULTI_TABLE_JUDGE_MODEL", "gpt-5.4-mini")
+JUDGE_MODEL = os.environ.get("FINQA_JUDGE_MODEL", "gpt-5-nano")
+MULTI_TABLE_JUDGE_MODEL = os.environ.get("FINQA_MULTI_TABLE_JUDGE_MODEL", "gpt-5-mini")
 
 CORRECTNESS_WEIGHTS = {
     "primary_data_score": 0.30,

@@ -226,7 +226,6 @@ gcp-key.json
 **/.litellm_proxy/
 
 # Local experiment artifacts: keep scripts/configs, not datasets or model state.
-/cookbooks/finqa/data/
 /exp_scripts/**/data/
 /exp_scripts/**/datasets/
 /exp_scripts/**/company_tables/
